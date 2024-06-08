@@ -1,0 +1,75 @@
+#define dirPin 2
+#define stepPin 3
+#define aceptar 4 // Pin del pulsador para girar en sentido de las agujas del reloj
+#define reiniciar 5 // Pin del pulsador para girar en sentido contrario a las agujas del reloj
+#define stepsPerRevolution 212
+#include <Wire.h>
+#include <LiquidCrystal_I2C.h>
+
+LiquidCrystal_I2C lcd(0x27, 16, 2); 
+int distancia = 0; // Declaración de variable global
+const int potPin = A0;
+bool aceptarPresionado = false;
+
+void setup() {
+  lcd.init();
+  lcd.backlight();
+  Serial.begin(9600);
+
+  // Declara los pines como salida o entrada:
+  pinMode(stepPin, OUTPUT);
+  pinMode(dirPin, OUTPUT);
+  pinMode(aceptar, INPUT_PULLUP); // Pulsador con resistencia pull-up interna
+  pinMode(reiniciar, INPUT_PULLUP); // Pulsador con resistencia pull-up interna
+}
+
+void loop() {
+  // Imprime el valor inicial
+  lcd.setCursor(0, 0);
+  lcd.print("Distancia:");
+  lcd.setCursor(2, 1);
+  lcd.print(distancia);
+
+  // Lee el valor del potenciometro
+  int potValue = analogRead(potPin);
+
+  // Mapear el valor del potenciómetro (0-1023) a la distancia (0-35 cm)
+  int mappedDistancia = map(potValue, 0, 1023, 0, 37);
+
+  int distancia_recorrida = mappedDistancia;
+
+  lcd.setCursor(2, 1);
+  lcd.print(distancia_recorrida);
+
+  while (distancia != distancia_recorrida) {
+    if (distancia_recorrida > distancia){
+      digitalWrite(dirPin, LOW);
+      moveMotor();
+      distancia += 1;
+    } else {
+      digitalWrite(dirPin, HIGH);
+      moveMotor();
+      distancia -= 1;
+    }
+  }
+  delay(5000);
+}
+
+void moveMotor() {
+  // Haz girar el motor 5 revoluciones rápidamente:
+  for (int i = 0; i < 5 * stepsPerRevolution; i++) {
+    // Estas cuatro líneas resultan en 1 paso:
+    digitalWrite(stepPin, HIGH);
+    delayMicroseconds(900);
+    digitalWrite(stepPin, LOW);
+    delayMicroseconds(900);
+  }
+}
+
+void actualizarPantalla() {
+  lcd.setCursor(0, 1);
+  lcd.print("                "); // Limpia la línea
+  lcd.setCursor(2, 1);
+  lcd.print(distancia); // Muestra la distancia actualizada
+  lcd.setCursor(4, 1);
+}
