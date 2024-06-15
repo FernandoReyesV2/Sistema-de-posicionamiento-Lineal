@@ -1,14 +1,14 @@
 #define dirPin 2
 #define stepPin 3
 #define aceptar 4 // Pin del pulsador para girar en sentido de las agujas del reloj
-#define reiniciar 5 // Pin del pulsador para girar en sentido contrario a las agujas del reloj
+#define ledPin 5
 #define stepsPerRevolution 212
 #include <Wire.h>
 #include <LiquidCrystal_I2C.h>
 
 LiquidCrystal_I2C lcd(0x27, 16, 2); 
 int distancia = 0; // Declaración de variable global
-const int potPin = A0;
+const int potPin = A1;
 
 void setup() {
   lcd.init();
@@ -19,15 +19,17 @@ void setup() {
   pinMode(stepPin, OUTPUT);
   pinMode(dirPin, OUTPUT);
   pinMode(aceptar, INPUT_PULLUP); // Pulsador con resistencia pull-up interna
-  pinMode(reiniciar, INPUT_PULLUP); // Pulsador con resistencia pull-up interna
+  pinMode(ledPin, OUTPUT);
 }
 
 void loop() {
+  char buffer[4];
   // Imprime el valor inicial
   lcd.setCursor(0, 0);
   lcd.print("Distancia:");
   lcd.setCursor(2, 1);
-  lcd.print(distancia);
+  sprintf(buffer, "%02d", distancia);
+  lcd.print(buffer);
 
   // Lee el valor del potenciometro
   int potValue = analogRead(potPin);
@@ -39,19 +41,26 @@ void loop() {
 
   int estado_aceptar = digitalRead(aceptar);
 
+  
+  sprintf(buffer, "%02d", distancia_recorrida);
   lcd.setCursor(2, 1);
-  lcd.print(distancia_recorrida);
+  lcd.print(buffer);
 
   if (estado_aceptar == LOW){
+    Serial.println("Botón aceptar presionado");
     while (distancia != distancia_recorrida) {
-    if (distancia_recorrida > distancia){
-      digitalWrite(dirPin, LOW);
-      moveMotor();
-      distancia += 1;
-    } else {
-      digitalWrite(dirPin, HIGH);
-      moveMotor();
-      distancia -= 1;
+      Serial.print("Distancia actual: ");
+      Serial.println(distancia);
+      Serial.print("Distancia objetivo: ");
+      Serial.println(distancia_recorrida);
+      if (distancia_recorrida > distancia){
+        digitalWrite(dirPin, LOW);
+        moveMotor();
+        distancia += 1;
+      } else {
+        digitalWrite(dirPin, HIGH);
+        moveMotor();
+        distancia -= 1;
       }
     }
   }
@@ -68,10 +77,3 @@ void moveMotor() {
   }
 }
 
-void actualizarPantalla() {
-  lcd.setCursor(0, 1);
-  lcd.print("                "); // Limpia la línea
-  lcd.setCursor(2, 1);
-  lcd.print(distancia); // Muestra la distancia actualizada
-  lcd.setCursor(4, 1);
-}
