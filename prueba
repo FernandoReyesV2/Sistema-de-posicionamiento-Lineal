@@ -1,7 +1,10 @@
+// Definimos los pines para cada color del LED RGB
+const int redPin = 10;
+const int greenPin = 9;
+const int bluePin = 8;
 #define dirPin 2
 #define stepPin 3
 #define aceptar 4 // Pin del pulsador para girar en sentido de las agujas del reloj
-#define ledPin 5
 #define stepsPerRevolution 212
 #include <Wire.h>
 #include <LiquidCrystal_I2C.h>
@@ -19,10 +22,13 @@ void setup() {
   pinMode(stepPin, OUTPUT);
   pinMode(dirPin, OUTPUT);
   pinMode(aceptar, INPUT_PULLUP); // Pulsador con resistencia pull-up interna
-  pinMode(ledPin, OUTPUT);
+  // colores
+  pinMode(redPin, OUTPUT);
+  pinMode(greenPin, OUTPUT);
+  pinMode(bluePin, OUTPUT);
 }
-
 void loop() {
+  setColor(0, 0, 255);
   char buffer[4];
   // Imprime el valor inicial
   lcd.setCursor(0, 0);
@@ -54,18 +60,20 @@ void loop() {
       Serial.print("Distancia objetivo: ");
       Serial.println(distancia_recorrida);
       if (distancia_recorrida > distancia){
+        setColor(0, 255, 0); //Greem
         digitalWrite(dirPin, LOW);
         moveMotor();
         distancia += 1;
       } else {
         digitalWrite(dirPin, HIGH);
+        setColor(255, 0, 0); //Rojo
         moveMotor();
         distancia -= 1;
       }
     }
   }
+  setColor(0, 0, 0); // Rojo máximo, Verde y Azul apagados
 }
-
 void moveMotor() {
   // Haz girar el motor 5 revoluciones rápidamente:
   for (int i = 0; i < 5 * stepsPerRevolution; i++) {
@@ -76,4 +84,9 @@ void moveMotor() {
     delayMicroseconds(900);
   }
 }
-
+// Función para establecer el color del LED RGB
+void setColor(int red, int green, int blue) {
+  analogWrite(redPin, red);
+  analogWrite(greenPin, green);
+  analogWrite(bluePin, blue);
+}
