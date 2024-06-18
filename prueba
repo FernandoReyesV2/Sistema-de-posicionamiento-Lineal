@@ -2,9 +2,12 @@
 const int redPin = 10;
 const int greenPin = 9;
 const int bluePin = 8;
+
 #define dirPin 2
 #define stepPin 3
 #define aceptar 4 // Pin del pulsador para girar en sentido de las agujas del reloj
+#define adelante 11
+#define atras 12
 #define stepsPerRevolution 212
 #include <Wire.h>
 #include <LiquidCrystal_I2C.h>
@@ -12,6 +15,7 @@ const int bluePin = 8;
 LiquidCrystal_I2C lcd(0x27, 16, 2); 
 int distancia = 0; // Declaración de variable global
 const int potPin = A1;
+int distanciaObjetivo = 0; // Variable para la distancia objetivo
 
 void setup() {
   lcd.init();
@@ -26,54 +30,70 @@ void setup() {
   pinMode(redPin, OUTPUT);
   pinMode(greenPin, OUTPUT);
   pinMode(bluePin, OUTPUT);
+
+  // otros led
+  pinMode(adelante, INPUT_PULLUP); // Establece el pin 11 como entrada con resistencia interna activada
+  pinMode(atras, INPUT_PULLUP);
 }
+
 void loop() {
   setColor(0, 0, 255);
-  char buffer[4];
-  // Imprime el valor inicial
-  lcd.setCursor(0, 0);
-  lcd.print("Distancia:");
-  lcd.setCursor(2, 1);
-  sprintf(buffer, "%02d", distancia);
-  lcd.print(buffer);
+
+  int estado_adelante = digitalRead(adelante);
+  int estado_atras = digitalRead(atras);
+  int estado_aceptar = digitalRead(aceptar);
+
+  if (estado_adelante == LOW) { // Verifica si el botón conectado al pin 11 está presionado
+    Serial.println("Boton en pin 11 presionado");
+    digitalWrite(dirPin, LOW);
+    distancia += 1;
+    moveMotor();
+  }
+
+  if (estado_atras == LOW) { // Verifica si el botón conectado al pin 12 está presionado
+    Serial.println("Boton en pin 12 presionado");
+    if (distancia > 0) {
+      digitalWrite(dirPin, HIGH);
+      distancia -= 1;
+      moveMotor();
+    } else {
+      lcd.setCursor(0, 0);
+      lcd.print("Invalido:");
+    }
+  }
 
   // Lee el valor del potenciometro
   int potValue = analogRead(potPin);
 
-  // Mapear el valor del potenciómetro (0-1023) a la distancia (0-35 cm)
-  int mappedDistancia = map(potValue, 0, 1023, 0, 37);
+  // Mapear el valor del potenciómetro (0-1023) a la distancia (0-37 cm)
+  distanciaObjetivo = map(potValue, 0, 1023, 0, 37);
 
-  int distancia_recorrida = mappedDistancia;
-
-  int estado_aceptar = digitalRead(aceptar);
-
-  
-  sprintf(buffer, "%02d", distancia_recorrida);
-  lcd.setCursor(2, 1);
-  lcd.print(buffer);
-
-  if (estado_aceptar == LOW){
+  if (estado_aceptar == LOW) {
     Serial.println("Botón aceptar presionado");
-    while (distancia != distancia_recorrida) {
+    while (distancia != distanciaObjetivo) {
       Serial.print("Distancia actual: ");
       Serial.println(distancia);
       Serial.print("Distancia objetivo: ");
-      Serial.println(distancia_recorrida);
-      if (distancia_recorrida > distancia){
-        setColor(0, 255, 0); //Greem
+      Serial.println(distanciaObjetivo);
+      if (distanciaObjetivo > distancia) {
+        setColor(0, 255, 0); // Verde
         digitalWrite(dirPin, LOW);
         moveMotor();
         distancia += 1;
       } else {
+        setColor(255, 0, 0); // Rojo
         digitalWrite(dirPin, HIGH);
-        setColor(255, 0, 0); //Rojo
         moveMotor();
         distancia -= 1;
       }
+      actualizarLCD();
     }
   }
-  setColor(0, 0, 0); // Rojo máximo, Verde y Azul apagados
+
+  setColor(0, 0, 0); // Apaga el LED RGB
+  actualizarLCD(); // Actualiza la LCD después de cada cambio de distancia y potenciómetro
 }
+
 void moveMotor() {
   // Haz girar el motor 5 revoluciones rápidamente:
   for (int i = 0; i < 5 * stepsPerRevolution; i++) {
@@ -84,9 +104,27 @@ void moveMotor() {
     delayMicroseconds(900);
   }
 }
+
 // Función para establecer el color del LED RGB
 void setColor(int red, int green, int blue) {
   analogWrite(redPin, red);
   analogWrite(greenPin, green);
   analogWrite(bluePin, blue);
+}
+
+// Función para actualizar el valor de la distancia en la LCD
+void actualizarLCD() {
+  char buffer[16];
+  lcd.clear();
+  lcd.setCursor(0, 0);
+  lcd.print("Actual:");
+  lcd.setCursor(8, 0);
+  sprintf(buffer, "%02d cm", distancia);
+  lcd.print(buffer);
+
+  lcd.setCursor(0, 1);
+  lcd.print("Obj:");
+  lcd.setCursor(8, 1);
+  sprintf(buffer, "%02d cm", distanciaObjetivo);
+  lcd.print(buffer);
 }
