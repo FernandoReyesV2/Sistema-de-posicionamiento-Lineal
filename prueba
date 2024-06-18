@@ -16,6 +16,8 @@ LiquidCrystal_I2C lcd(0x27, 16, 2);
 int distancia = 0; // Declaración de variable global
 const int potPin = A1;
 int distanciaObjetivo = 0; // Variable para la distancia objetivo
+int lastDistancia = -1; // Último valor de distancia
+int lastDistanciaObjetivo = -1; // Último valor de distancia objetivo
 
 void setup() {
   lcd.init();
@@ -114,17 +116,22 @@ void setColor(int red, int green, int blue) {
 
 // Función para actualizar el valor de la distancia en la LCD
 void actualizarLCD() {
-  char buffer[16];
-  lcd.clear();
-  lcd.setCursor(0, 0);
-  lcd.print("Actual:");
-  lcd.setCursor(8, 0);
-  sprintf(buffer, "%02d cm", distancia);
-  lcd.print(buffer);
+  if (distancia != lastDistancia || distanciaObjetivo != lastDistanciaObjetivo) {
+    char buffer[16];
+    lcd.setCursor(0, 0);
+    lcd.print("Actual:");
+    lcd.setCursor(8, 0);
+    sprintf(buffer, "%02d cm", distancia);
+    lcd.print(buffer);
+  
+    lcd.setCursor(0, 1);
+    lcd.print("Obj:");
+    lcd.setCursor(8, 1);
+    sprintf(buffer, "%02d cm", distanciaObjetivo);
+    lcd.print(buffer);
 
-  lcd.setCursor(0, 1);
-  lcd.print("Obj:");
-  lcd.setCursor(8, 1);
-  sprintf(buffer, "%02d cm", distanciaObjetivo);
-  lcd.print(buffer);
+    // Actualiza los últimos valores registrados
+    lastDistancia = distancia;
+    lastDistanciaObjetivo = distanciaObjetivo;
+  }
 }
