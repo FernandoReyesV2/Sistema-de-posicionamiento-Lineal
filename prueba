@@ -5,9 +5,9 @@ const int bluePin = 8;
 
 #define dirPin 2
 #define stepPin 3
-#define aceptar 4 // Pin del pulsador para girar en sentido de las agujas del reloj
-#define adelante 11
-#define atras 12
+#define aceptar 12 // Pin del pulsador para girar en sentido de las agujas del reloj
+#define adelante 4
+#define atras 11
 #define stepsPerRevolution 212
 #include <Wire.h>
 #include <LiquidCrystal_I2C.h>
@@ -36,11 +36,18 @@ void setup() {
   // otros led
   pinMode(adelante, INPUT_PULLUP); // Establece el pin 11 como entrada con resistencia interna activada
   pinMode(atras, INPUT_PULLUP);
+
+  pinMode(13, OUTPUT); // Configura el pin 13 como salida
+  // digitalWrite(13, HIGH);
+  pinMode(7, OUTPUT);
+  pinMode(6, OUTPUT);
 }
 
 void loop() {
-  setColor(0, 0, 255);
-
+  setColor(0, 0, 255); // boton adelante
+  digitalWrite(13, HIGH); // boton atras
+  digitalWrite(6, HIGH);
+  
   int estado_adelante = digitalRead(adelante);
   int estado_atras = digitalRead(atras);
   int estado_aceptar = digitalRead(aceptar);
@@ -49,6 +56,7 @@ void loop() {
     Serial.println("Boton en pin 11 presionado");
     digitalWrite(dirPin, LOW);
     distancia += 1;
+    setColor(255, 0, 0); // Rojo
     moveMotor();
   }
 
@@ -57,12 +65,15 @@ void loop() {
     if (distancia > 0) {
       digitalWrite(dirPin, HIGH);
       distancia -= 1;
+      digitalWrite(13, LOW); //LUZ AZUL
+      digitalWrite(7, HIGH); // LUZ ROJA
       moveMotor();
     } else {
       lcd.setCursor(0, 0);
       lcd.print("Invalido:");
     }
   }
+  digitalWrite(7, LOW);
 
   // Lee el valor del potenciometro
   int potValue = analogRead(potPin);
@@ -78,12 +89,10 @@ void loop() {
       Serial.print("Distancia objetivo: ");
       Serial.println(distanciaObjetivo);
       if (distanciaObjetivo > distancia) {
-        setColor(0, 255, 0); // Verde
         digitalWrite(dirPin, LOW);
         moveMotor();
         distancia += 1;
       } else {
-        setColor(255, 0, 0); // Rojo
         digitalWrite(dirPin, HIGH);
         moveMotor();
         distancia -= 1;
