@@ -1,88 +1,131 @@
-// Definimos los pines para cada color del LED RGB
-const int redPin = 10;
-const int greenPin = 9;
-const int bluePin = 8;
-
+// Definimos los pines para el motor y los botones
 #define dirPin 2
 #define stepPin 3
-#define aceptar 12 // Pin del pulsador para girar en sentido de las agujas del reloj
+
+// BOTONES ADELANTE
 #define adelante 4
+// LED RGB
+const int redPin = 5;
+const int greenPin = 6;
+const int bluePin = 7;
+
+// BOTON ACEPTAR
+#define aceptar 8
+int aceptarAzul = 9;
+int aceptarRojo = 10;
+
+// BOTON ATRAS
 #define atras 11
-#define stepsPerRevolution 212
+int atrasAzul = 13;
+int atrasRojo = 12;
+
+
+// REVOLUCIONES DEL MOTOR 172 = 1CM
+#define stepsPerRevolution 198 // Número de pasos por revolución para el motor
+
 #include <Wire.h>
 #include <LiquidCrystal_I2C.h>
 
-LiquidCrystal_I2C lcd(0x27, 16, 2); 
-int distancia = 0; // Declaración de variable global
+// Inicializamos la pantalla LCD con la dirección 0x27 y tamaño 16x2
+LiquidCrystal_I2C lcd(0x27, 16, 2);
+
+// Variables globales para la distancia y el potenciómetro
+int distancia = 0; 
 const int potPin = A1;
-int distanciaObjetivo = 0; // Variable para la distancia objetivo
-int lastDistancia = -1; // Último valor de distancia
-int lastDistanciaObjetivo = -1; // Último valor de distancia objetivo
+int distanciaObjetivo = 0;
+int lastDistancia = -1;
+int lastDistanciaObjetivo = -1;
 
 void setup() {
+  // Inicializamos la pantalla LCD y la comunicación serial
   lcd.init();
   lcd.backlight();
   Serial.begin(9600);
 
-  // Declara los pines como salida o entrada:
+  // Configuramos los pines como entrada o salida según corresponda
   pinMode(stepPin, OUTPUT);
   pinMode(dirPin, OUTPUT);
-  pinMode(aceptar, INPUT_PULLUP); // Pulsador con resistencia pull-up interna
-  // colores
+
+  // BOTON ACEPTAR
+  pinMode(aceptar, INPUT_PULLUP);
+  pinMode(aceptarAzul, OUTPUT);
+  pinMode(aceptarRojo, OUTPUT);
+  
+  
+
+  //BOTON ADELANTE
+  pinMode(adelante, INPUT_PULLUP); 
+  // Configuración de los pines del LED RGB
   pinMode(redPin, OUTPUT);
   pinMode(greenPin, OUTPUT);
   pinMode(bluePin, OUTPUT);
-
-  // otros led
-  pinMode(adelante, INPUT_PULLUP); // Establece el pin 11 como entrada con resistencia interna activada
-  pinMode(atras, INPUT_PULLUP);
-
-  pinMode(13, OUTPUT); // Configura el pin 13 como salida
-  // digitalWrite(13, HIGH);
-  pinMode(7, OUTPUT);
-  pinMode(6, OUTPUT);
+  
+  // BOTON ATRAS
+  pinMode(atras, INPUT_PULLUP); 
+  pinMode(atrasAzul, OUTPUT); // LED AZUL
+  pinMode(atrasRojo, OUTPUT); // LED ROJO
 }
 
 void loop() {
-  setColor(0, 0, 255); // boton adelante
-  digitalWrite(13, HIGH); // boton atras
-  digitalWrite(6, HIGH);
-  
+  // Verificamos si hay datos disponibles en el puerto serial
+  if (Serial.available()) {
+    char received = Serial.read();
+    Serial.print("Recibido: ");
+    Serial.println(received);
+  }
+
+  // ENCENDEMOS LOS LEDS(AZUL) 
+  setColor(0, 255, 0);
+  digitalWrite(aceptarAzul, HIGH);
+  digitalWrite(atrasAzul, HIGH);
+
+  // Leemos el estado de los botones
   int estado_adelante = digitalRead(adelante);
   int estado_atras = digitalRead(atras);
   int estado_aceptar = digitalRead(aceptar);
 
-  if (estado_adelante == LOW) { // Verifica si el botón conectado al pin 11 está presionado
+  // Si el botón "adelante" está presionado
+  if (estado_adelante == LOW) {
     Serial.println("Boton en pin 11 presionado");
     digitalWrite(dirPin, LOW);
     distancia += 1;
     setColor(255, 0, 0); // Rojo
     moveMotor();
   }
+  // VUELVE AL COLOR AZUL
+    setColor(0, 255, 0); // Rojo
 
-  if (estado_atras == LOW) { // Verifica si el botón conectado al pin 12 está presionado
+
+  // Si el botón "atrás" está presionado
+  if (estado_atras == LOW) {
     Serial.println("Boton en pin 12 presionado");
     if (distancia > 0) {
       digitalWrite(dirPin, HIGH);
       distancia -= 1;
-      digitalWrite(13, LOW); //LUZ AZUL
-      digitalWrite(7, HIGH); // LUZ ROJA
+      digitalWrite(atrasAzul, LOW); // APAGA LUZ AZUL
+      digitalWrite(atrasRojo, HIGH); // ENCIENDE LUZ ROJA
       moveMotor();
     } else {
       lcd.setCursor(0, 0);
       lcd.print("Invalido:");
     }
   }
-  digitalWrite(7, LOW);
+  digitalWrite(atrasRojo, LOW); // APAGAMOS LUZ ROJA
+  digitalWrite(atrasAzul, HIGH); // ENCENDEMOS LUZ AZUL
 
-  // Lee el valor del potenciometro
+
+  // Leemos el valor del potenciómetro
   int potValue = analogRead(potPin);
 
-  // Mapear el valor del potenciómetro (0-1023) a la distancia (0-37 cm)
+  // Mapeamos el valor del potenciómetro (0-1023) a la distancia (0-37 cm)
   distanciaObjetivo = map(potValue, 0, 1023, 0, 37);
 
+  // Si el botón "aceptar" está presionado
   if (estado_aceptar == LOW) {
     Serial.println("Botón aceptar presionado");
+    digitalWrite(aceptarRojo, HIGH); // ENCENDEMOS LUZ ROJA
+    digitalWrite(aceptarAzul, LOW); // APAGAMOS LUZ AZUL
+
     while (distancia != distanciaObjetivo) {
       Serial.print("Distancia actual: ");
       Serial.println(distancia);
@@ -100,15 +143,17 @@ void loop() {
       actualizarLCD();
     }
   }
+  // APAGAMOS ROJO Y ENCENDEMOS AZUL
+  digitalWrite(aceptarRojo, LOW);
+  digitalWrite(aceptarAzul, HIGH);
 
-  setColor(0, 0, 0); // Apaga el LED RGB
-  actualizarLCD(); // Actualiza la LCD después de cada cambio de distancia y potenciómetro
+  // Actualiza la LCD después de cada cambio de distancia y potenciómetro
+  actualizarLCD();
 }
 
+// Función para mover el motor un número determinado de pasos
 void moveMotor() {
-  // Haz girar el motor 5 revoluciones rápidamente:
   for (int i = 0; i < 5 * stepsPerRevolution; i++) {
-    // Estas cuatro líneas resultan en 1 paso:
     digitalWrite(stepPin, HIGH);
     delayMicroseconds(900);
     digitalWrite(stepPin, LOW);
