@@ -38,6 +38,8 @@ int lastDistanciaObjetivo = -1;
 
 // BLUETOOTH VARIABLE RECIBIDA
 char received = '\0';
+char receivedDigits[4] = {'\0', '\0', '\0', '\0'}; // Almacena los dígitos recibidos
+int digitIndex = 0;
 
 void setup() {
   // Inicializamos la pantalla LCD y la comunicación serial
@@ -68,11 +70,31 @@ void setup() {
 }
 
 void loop() {
+
+  // COMUNICACION CON PYTHON
+  char cambio = Serial.read();
+  Serial.println(cambio);
+  delay(1000);
+
+
   // Verificamos si hay datos disponibles en el puerto serial
   if (Serial.available()) {
     received = Serial.read();
     Serial.print("Este es Uno: ");
     Serial.println(received);
+
+    if (isdigit(received)) {
+      receivedDigits[digitIndex++] = received; // Almacena el dígito en el array
+    } else if (received == ',') {
+      // Si se recibe una coma, se interpreta como el final del número
+      receivedDigits[digitIndex] = '\0'; // Añade terminador de string
+      distanciaObjetivo = atoi(receivedDigits); // Convierte a entero
+      digitIndex = 0; // Reinicia el índice para el próximo número
+      Serial.print("Distancia Objetivo: ");
+      Serial.println(distanciaObjetivo);
+
+      moverMotorABluetooth();
+    }
 
     // Limpiar el buffer de entrada serial
     while (Serial.available() > 0) {
@@ -90,9 +112,8 @@ void loop() {
   int estado_atras = digitalRead(atras);
   int estado_aceptar = digitalRead(aceptar);
 
-  
   // ADELANTE CON BLUETOOTH 
-  if (received == 'D') {
+  if (received == 'I') {
     if (distancia < 25){
       digitalWrite(dirPin, LOW);
       distancia += 1;
@@ -105,7 +126,7 @@ void loop() {
     setColor(0, 255, 0); // Rojo
 
   // ATRAS CON BLUETOOTH
-  if (received == 'I') {
+  if (received == 'D') {
     if (distancia > 0) {
       digitalWrite(dirPin, HIGH);
       distancia -= 1;
@@ -180,7 +201,15 @@ void loop() {
       }
       actualizarLCD();
     }
+
+    String resultado = Serial.readStringUntil('\n');
+    if (resultado == "cambio") {
+      Serial.println("Cambio detectado en la imagen.");
+    } else {
+      Serial.println("No se detectaron cambios en la imagen.");
+    }
   }
+
   // APAGAMOS ROJO Y ENCENDEMOS AZUL
   digitalWrite(aceptarRojo, LOW);
   digitalWrite(aceptarAzul, HIGH);
@@ -226,4 +255,28 @@ void actualizarLCD() {
     lastDistancia = distancia;
     lastDistanciaObjetivo = distanciaObjetivo;
   }
+}
+
+void moverMotorABluetooth() {
+  while (distancia != distanciaObjetivo) {
+    digitalWrite(aceptarRojo, HIGH); // ENCENDEMOS LUZ ROJA
+    digitalWrite(aceptarAzul, LOW); // APAGAMOS LUZ AZUL
+    Serial.print("Distancia actual: ");
+    Serial.println(distancia);
+    Serial.print("Distancia objetivo: ");
+    Serial.println(distanciaObjetivo);
+    if (distanciaObjetivo > distancia) {
+      digitalWrite(dirPin, LOW);
+      moveMotor();
+      distancia += 1;
+    } else {
+      digitalWrite(dirPin, HIGH);
+      moveMotor();
+      distancia -= 1;
+    }
+    actualizarLCD();
+  }
+  // APAGAMOS ROJO Y ENCENDEMOS AZUL
+  digitalWrite(aceptarRojo, LOW);
+  digitalWrite(aceptarAzul, HIGH);
 }
