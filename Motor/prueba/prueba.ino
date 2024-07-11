@@ -70,17 +70,10 @@ void setup() {
 }
 
 void loop() {
-
-  // COMUNICACION CON PYTHON
-  char cambio = Serial.read();
-  Serial.println(cambio);
-  delay(1000);
-
-
   // Verificamos si hay datos disponibles en el puerto serial
   if (Serial.available()) {
     received = Serial.read();
-    Serial.print("Este es Uno: ");
+    // Serial.print("Este es Uno: ");
     Serial.println(received);
 
     if (isdigit(received)) {
@@ -114,12 +107,14 @@ void loop() {
 
   // ADELANTE CON BLUETOOTH 
   if (received == 'I') {
-    if (distancia < 25){
+    if (distancia < 30){
       digitalWrite(dirPin, LOW);
       distancia += 1;
       setColor(255, 0, 0); // Rojo
       moveMotor();
       received = '\0';
+    }else{
+      limpiarError();
     }
   }
   // VUELVE AL COLOR AZUL
@@ -135,26 +130,31 @@ void loop() {
       moveMotor();
       received = '\0';
     } else {
-      // lcd.setCursor(0, 0);s
-      // lcd.print("Invalido:");
+      limpiarError();
     }
   }
 
+  digitalWrite(atrasAzul, HIGH); // ENCIENDE LUZ AZUL
+  digitalWrite(atrasRojo, LOW); // APAGA LUZ ROJAA
+
   // Si el botón "adelante" está presionado
   if (estado_adelante == LOW) {
-    Serial.println("Boton en pin 11 presionado");
-    digitalWrite(dirPin, LOW);
-    distancia += 1;
-    setColor(255, 0, 0); // Rojo
-    moveMotor();
+    // Serial.println("Boton en pin 11 presionado");
+    if (distancia < 30){
+      digitalWrite(dirPin, LOW);
+      distancia += 1;
+      setColor(255, 0, 0); // Rojo
+      moveMotor();
+    }else{
+    limpiarError();
+    }
   }
   // VUELVE AL COLOR AZUL
     setColor(0, 255, 0); // Rojo
 
-
   // Si el botón "atrás" está presionado
   if (estado_atras == LOW) {
-    Serial.println("Boton en pin 12 presionado");
+    // Serial.println("Boton en pin 12 presionado");
     if (distancia > 0) {
       digitalWrite(dirPin, HIGH);
       distancia -= 1;
@@ -162,19 +162,18 @@ void loop() {
       digitalWrite(atrasRojo, HIGH); // ENCIENDE LUZ ROJA
       moveMotor();
     } else {
-      // lcd.setCursor(0, 0);
-      // lcd.print("Invalido:");
+      limpiarError();
     }
-  }
+  } 
+  
   digitalWrite(atrasRojo, LOW); // APAGAMOS LUZ ROJA
   digitalWrite(atrasAzul, HIGH); // ENCENDEMOS LUZ AZUL
-
 
   // Leemos el valor del potenciómetro
   int potValue = analogRead(potPin);
 
   // Mapeamos el valor del potenciómetro (0-1023) a la distancia (0-35 cm)
-  distanciaObjetivo = map(potValue, 100, 900, 0, 35);
+  distanciaObjetivo = map(potValue, 100, 900, 0, 30);
   if (distanciaObjetivo < 0) {
   distanciaObjetivo = 0;
   }
@@ -184,28 +183,31 @@ void loop() {
     Serial.println("Botón aceptar presionado");
     digitalWrite(aceptarRojo, HIGH); // ENCENDEMOS LUZ ROJA
     digitalWrite(aceptarAzul, LOW); // APAGAMOS LUZ AZUL
-
+  
     while (distancia != distanciaObjetivo) {
       Serial.print("Distancia actual: ");
       Serial.println(distancia);
       Serial.print("Distancia objetivo: ");
       Serial.println(distanciaObjetivo);
-      if (cambio == '\xff'){
-        break;
-      }else{
-        if (distanciaObjetivo > distancia) {
+  
+      if (Serial.available() > 0) {
+        String comando = Serial.readStringUntil('\n');
+        if (comando = "CMD:INTERRUPT") {
+          break; // Rompe el bucle cuando se recibe el comando de interrupción
+        }
+      }
+      if (distanciaObjetivo > distancia) {
         digitalWrite(dirPin, LOW);
         moveMotor();
-          distancia += 1;
-        } else {
-          digitalWrite(dirPin, HIGH);
-          moveMotor();
-          distancia -= 1;
-        }
-        actualizarLCD();
+        distancia += 1;
+      } else {
+        digitalWrite(dirPin, HIGH);
+        moveMotor();
+        distancia -= 1;
       }
-    }
-  }
+      actualizarLCD();
+     }
+   }
 
   // APAGAMOS ROJO Y ENCENDEMOS AZUL
   digitalWrite(aceptarRojo, LOW);
@@ -255,25 +257,43 @@ void actualizarLCD() {
 }
 
 void moverMotorABluetooth() {
-  while (distancia != distanciaObjetivo) {
-    digitalWrite(aceptarRojo, HIGH); // ENCENDEMOS LUZ ROJA
-    digitalWrite(aceptarAzul, LOW); // APAGAMOS LUZ AZUL
-    Serial.print("Distancia actual: ");
-    Serial.println(distancia);
-    Serial.print("Distancia objetivo: ");
-    Serial.println(distanciaObjetivo);
-    if (distanciaObjetivo > distancia) {
-      digitalWrite(dirPin, LOW);
-      moveMotor();
-      distancia += 1;
-    } else {
-      digitalWrite(dirPin, HIGH);
-      moveMotor();
-      distancia -= 1;
+  if (distancia < 30 && distancia > 0){
+    while (distancia != distanciaObjetivo) {
+      digitalWrite(aceptarRojo, HIGH); // ENCENDEMOS LUZ ROJA
+      digitalWrite(aceptarAzul, LOW); // APAGAMOS LUZ AZUL
+      Serial.print("Distancia actual: ");
+      Serial.println(distancia);
+      Serial.print("Distancia objetivo: ");
+      Serial.println(distanciaObjetivo);
+      if (distanciaObjetivo > distancia) {
+        digitalWrite(dirPin, LOW);
+        moveMotor();
+        distancia += 1;
+      } else {
+        digitalWrite(dirPin, HIGH);
+        moveMotor();
+        distancia -= 1;
+      }
+      actualizarLCD();
     }
-    actualizarLCD();
+    // APAGAMOS ROJO Y ENCENDEMOS AZUL
+    digitalWrite(aceptarRojo, LOW);
+    digitalWrite(aceptarAzul, HIGH);
   }
-  // APAGAMOS ROJO Y ENCENDEMOS AZUL
-  digitalWrite(aceptarRojo, LOW);
-  digitalWrite(aceptarAzul, HIGH);
+}
+
+void limpiarError(){
+  char buffer[16];
+  lcd.setCursor(0, 0);
+  lcd.print("               ");
+  lcd.setCursor(0, 0);
+  lcd.print("Invalido:");
+  delay(500);
+  lcd.setCursor(0, 0);
+  lcd.print("               ");
+  lcd.setCursor(0, 0);
+  lcd.print("Actual:");
+  lcd.setCursor(8, 0);
+  sprintf(buffer, "%02d cm", distancia);
+  lcd.print(buffer);
 }
