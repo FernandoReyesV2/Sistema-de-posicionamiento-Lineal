@@ -26,7 +26,7 @@ if not ret:
 ref_gray = cv2.cvtColor(ref_frame, cv2.COLOR_BGR2GRAY)
 
 # Variable para ajustar el valor de similitud
-similarity_threshold = 0.02  # Ajusta este valor para cambiar la sensibilidad
+similarity_threshold = 0.04  # Ajusta este valor para cambiar la sensibilidad
 
 # Bandera para controlar el tiempo de espera
 esperar = False
