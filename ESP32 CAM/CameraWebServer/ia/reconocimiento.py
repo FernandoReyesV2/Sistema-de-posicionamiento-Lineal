@@ -1,8 +1,8 @@
 import cv2
-import numpy as np
-import serial, time #arduino comunicacion
+import serial
+import time
 
-arduino = serial.Serial('COM3', 9600)
+arduino = serial.Serial('COM4', 9600, timeout=1)
 time.sleep(2)
 
 # URL de la cámara IP (ESP32-CAM configurada como punto de acceso)
@@ -22,15 +22,14 @@ if not ret:
     cap.release()
     exit()
 
-# Guardar la imagen de referencia
-cv2.imwrite('referencia.jpg', ref_frame)
-
-# Convertir la imagen de referencia a escala de grises y suavizar
+# Convertir la imagen de referencia a escala de grises
 ref_gray = cv2.cvtColor(ref_frame, cv2.COLOR_BGR2GRAY)
-ref_gray = cv2.GaussianBlur(ref_gray, (21, 21), 0)
 
 # Variable para ajustar el valor de similitud
-similarity_threshold = 0.05  # Ajusta este valor para cambiar la sensibilidad
+similarity_threshold = 0.02  # Ajusta este valor para cambiar la sensibilidad
+
+# Bandera para controlar el tiempo de espera
+esperar = False
 
 while True:
     # Capturar frame por frame
@@ -40,29 +39,40 @@ while True:
         print("Error al recibir frames.")
         break
 
-    # Convertir el frame actual a escala de grises y suavizar
+    # Convertir el frame actual a escala de grises
     gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-    gray = cv2.GaussianBlur(gray, (21, 21), 0)
 
-    # Calcular la diferencia absoluta entre el frame actual y la referencia
-    frame_delta = cv2.absdiff(ref_gray, gray)
-    thresh = cv2.threshold(frame_delta, 25, 255, cv2.THRESH_BINARY)[1]
+    if not esperar:
+        # Calcular la diferencia absoluta entre el frame actual y la referencia
+        frame_delta = cv2.absdiff(ref_gray, gray)
 
-    # Dilatar la imagen umbralizada para rellenar agujeros y encontrar contornos
-    thresh = cv2.dilate(thresh, None, iterations=2)
-    contours, _ = cv2.findContours(thresh.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        # Verificar si hay cambios significativos en la imagen
+        _, thresh = cv2.threshold(frame_delta, 30, 255, cv2.THRESH_BINARY)
+        non_zero_pixels = cv2.countNonZero(thresh)
+        if non_zero_pixels > (thresh.size * similarity_threshold):
+            comando = b"C\n"  # Envía un comando con formato
+            arduino.write(comando)
+            time.sleep(0.5)  # Agrega un delay entre comandos
 
-    # Verificar si hay cambios significativos en la imagen
-    non_zero_pixels = cv2.countNonZero(thresh)
-    if non_zero_pixels > (thresh.size * similarity_threshold):
-        arduino.write(b"C")
-        time.sleep(2)
+            # Procesa la respuesta de Arduino
+            respuesta = arduino.readline().strip()
+            if respuesta == b"C":
+                print("Comando ejecutado correctamente")
+            else:
+                print("Error al ejecutar comando:", respuesta)
 
-        # Leer la respuesta de Arduino
-        respuesta = arduino.readline().strip()
-        print(respuesta)
+            # Establecer la bandera para esperar
+            esperar = True
+            # Guardar el tiempo en que se detectó el cambio
+            tiempo_cambio = time.time()
 
-    # Mostrar el frame con la diferencia
+    else:
+        # Esperar 2 segundos después de detectar un cambio
+        if time.time() - tiempo_cambio >= 5:
+            print("Tiempo finalizado")
+            esperar = False  # Reiniciar la comparación
+
+    # No mostrar el frame en una ventana (comentar esta línea)
     cv2.imshow('Detección de Cambios (ESP32-CAM)', frame)
 
     # Salir con la tecla 'q'
